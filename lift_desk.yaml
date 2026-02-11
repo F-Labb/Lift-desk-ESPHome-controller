@@ -1,0 +1,164 @@
+esphome:
+  name: lift_desk
+  friendly_name: Стол
+
+esp32:
+  board: esp32-c6-devkitc-1
+  framework:
+    type: esp-idf
+
+api:
+  encryption:
+    key: "xxx"
+
+ota:
+  - platform: esphome
+    password: "xxx"
+
+network:
+  enable_ipv6: true
+
+openthread:
+  device_type: FTD
+  tlv: !secret thread_tlv
+
+substitutions:
+  up_btn: GPIO7
+  down_btn: GPIO6
+  pos_1_btn: GPIO4
+  pos_2_btn: GPIO2
+  pos_3_btn: GPIO0
+#  i2c_sda: GPIO19
+#  i2c_scl: GPIO18
+#  enable_tof: GPIO5
+
+#i2c:
+#  sda: $i2c_sda
+#  scl: $i2c_scl
+#  id: bus_a
+#  scan: true
+
+output:
+  - platform: gpio
+    pin: $up_btn
+    id: output_up
+  - platform: gpio
+    pin: $down_btn
+    id: output_down
+  - platform: gpio
+    pin: $pos_1_btn
+    id: output_preset1
+  - platform: gpio
+    pin: $pos_2_btn
+    id: output_preset2
+  - platform: gpio
+    pin: $pos_3_btn
+    id: output_preset3
+
+#sensor:
+#  - platform: vl53l0x
+#    name: "Высота стола"
+#    id: height_sensor
+#    address: 0x29
+#    enable_pin: $enable_tof
+#    update_interval: 500ms
+#    long_range: True
+#    unit_of_measurement: "cm"
+#    accuracy_decimals: 1
+#    filters:
+#      - multiply: 100
+#     - sliding_window_moving_average:
+#          window_size: 10
+#          send_every: 3
+#      - lambda: return x;
+
+#    on_value:
+#      then:
+#        - lambda: |-
+#            float current_cm = x;
+#            float min_h = $min_height_cm;
+#            float max_h = $max_height_cm;
+#            float pos = (current_cm - min_h) / (max_h - min_h);
+#            if (pos < 0.0) pos = 0.0;
+#            if (pos > 1.0) pos = 1.0;
+#            id(desk_controller).position = pos;
+#            id(desk_controller).publish_state();
+
+button:
+  - platform: template
+    name: "Пресет 1"
+    on_press:
+      - cover.stop: desk_controller
+      - output.turn_on: output_preset1
+      - delay: 200ms
+      - output.turn_off: output_preset1
+
+  - platform: template
+    name: "Пресет 2"
+    on_press:
+      - cover.stop: desk_controller
+      - output.turn_on: output_preset2
+      - delay: 200ms
+      - output.turn_off: output_preset2
+
+  - platform: template
+    name: "Пресет 3"
+    on_press:
+      - cover.stop: desk_controller
+      - output.turn_on: output_preset3
+      - delay: 200ms
+      - output.turn_off: output_preset3
+
+cover:
+  - platform: template
+    name: "Управление"
+    id: desk_controller
+    optimistic: True
+#    has_position: true
+#    lambda: |-
+#      if (id(desk_controller).position >= 0.99) return COVER_OPEN;
+#      if (id(desk_controller).position <= 0.01) return COVER_CLOSED;
+#      return COVER_OPEN;
+
+    open_action:
+      then:
+        - output.turn_off: output_down
+        - output.turn_on: output_up
+    close_action:
+      then:
+        - output.turn_off: output_up
+        - output.turn_on: output_down
+    stop_action:
+      - output.turn_off: output_up
+      - output.turn_off: output_down
+
+#    position_action:
+#      - then:
+#          - lambda: |-
+#              float min_h = $min_height_cm;
+#              float max_h = $max_height_cm;
+#              float target_cm = pos * (max_h - min_h) + min_h;
+#              id(global_target_height) = target_cm; //# Исправлено здесь
+
+#          - while:
+#              condition:
+#                lambda: |-
+#                  return abs(id(height_sensor).state - id(global_target_height)) > 1.0; //# И здесь
+#              then:
+#                - lambda: |-
+#                    if (id(height_sensor).state < id(global_target_height)) { //# И здесь
+#                      id(output_down).turn_off();
+#                      id(output_up).turn_on();
+#                    } else {
+#                      id(output_up).turn_off();
+#                      id(output_down).turn_on();
+#                    }
+#                - delay: 100ms
+#          - output.turn_off: output_up
+#          - output.turn_off: output_down
+
+#globals:
+#   - id: global_target_height
+#     type: float
+#     restore_value: no
+#     initial_value: '0'
